@@ -8,10 +8,11 @@
 
 extern bool validateIPChecksum(uint8_t *packet, size_t len);
 extern void update(bool insert, RoutingTableEntry entry);
-extern bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index);
+extern bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index, uint32_t *metric);
 extern bool forward(uint8_t *packet, size_t len);
 extern bool disassemble(const uint8_t *packet, uint32_t len, RipPacket *output);
 extern uint32_t assemble(const RipPacket *rip, uint8_t *buffer);
+extern void buidRipPacket(RipPacket *resp, uint32_t if_index);
 
 uint8_t packet[2048];
 uint8_t output[2048];
@@ -41,7 +42,8 @@ int main(int argc, char *argv[]) {
         .addr = addrs[i] & 0x00FFFFFF, // big endian
         .len = 24,        // small endian
         .if_index = i,    // small endian
-        .nexthop = 0      // big endian, means direct
+        .nexthop = 0,      // big endian, means direct
+        .metric = 0
     };
     update(true, entry);
   }
@@ -85,15 +87,15 @@ int main(int argc, char *argv[]) {
       output[27] = 0x00;
       // ...
       // RIP
-      output[28] = 1;
-      output[29] = 2;
+      output[28] = 0x01;
+      output[29] = 0x02;
       // ...
       for(int i = 30; i < 53; i++) {
         output[i] = 0;
       }
       output[53] = 0x10;
       unsigned long checksum = 0;
-      for (uint8_t i = 0; i < length; i += 2) {
+      for (uint8_t i = 0; i < 20; i += 2) {
         if (i != 10) {
           checksum += (((unsigned long)packet[i] << 8) + (unsigned long)packet[i + 1]);
         }
@@ -104,11 +106,11 @@ int main(int argc, char *argv[]) {
       output[11] = (uint8_t)(~checksum);
       uint32_t rip_len = 0x34;
       macaddr_t dst_mac;
-      //TODO: get ifindex & dst_mac
-      in_add
-       = HAL_ArpGetMacAddress(,0x090000e0 , dst_mac);
-       //
-      HAL_SendIPPacket(if_index, output, rip_len, dst_mac);
+      HAL_ArpGetMacAddress(0, 0x090000e0, dst_mac);
+      HAL_SendIPPacket(0, output, rip_len, dst_mac);
+      HAL_SendIPPacket(1, output, rip_len, dst_mac);
+      HAL_SendIPPacket(2, output, rip_len, dst_mac);
+      HAL_SendIPPacket(3, output, rip_len, dst_mac);
       printf("30s Timer\n");
       last_time = time;
     }
@@ -170,6 +172,7 @@ int main(int argc, char *argv[]) {
           // 3a.3 request, ref. RFC2453 3.9.1
           // only need to respond to whole table requests in the lab
           RipPacket resp;
+          buildRipPacket(&resp, if_index);
           // TODO: fill resp
           // assemble
           // IP
@@ -206,7 +209,7 @@ int main(int argc, char *argv[]) {
           // TODO: checksum
           // checksum calculation for ip and udp
           unsigned long checksum = 0;
-          for (uint8_t i = 0; i < length; i += 2) {
+          for (uint8_t i = 0; i < 20; i += 2) {
             if (i != 10) {
               checksum += (((unsigned long)packet[i] << 8) + (unsigned long)packet[i + 1]);
             }
@@ -230,14 +233,43 @@ int main(int argc, char *argv[]) {
           // what is missing from RoutingTableEntry?
           // TODO: use query and update
           // triggered updates? ref. RFC2453 3.10.1
+          int count = rip.numEntries;
+          for(int i = 0; i < count; i++) {
+            uint32_t nexthop, dest_if, metric;
+            uint32_t len = 0;
+            uint32_t seMask = ntohl(rip.entries[i].mask);
+            for(int j = 0; j < 32; j++) {
+              if((seMask >> j) % 2 == 1) {
+                len = 32 - j;
+                break;
+              }
+            }
+            RoutingTableEntry tableEntry = {
+                .addr = rip.entries[i].addr,
+                .len = len,
+                .if_index = if_index,
+                .nexthop = src_addr,
+                .metric = rip.entries[i].metric
+            };
+            if(rip.entries[i].metric > 16) {
+              update(false, tableEntry);
+            }
+            if(query(rip.entries[i].addr, &nexthop, &dest_if, &metric)) {
+              if(rip.entries[i].metric < metric) {
+                update(true, tableEntry);
+              }
+            } else {
+              update(true, tableEntry);
+            }
+          }
         }
       }
     } else {
       // 3b.1 dst is not me
       // forward
       // beware of endianness
-      uint32_t nexthop, dest_if;
-      if (query(dst_addr, &nexthop, &dest_if)) {
+      uint32_t nexthop, dest_if, metric;
+      if (query(dst_addr, &nexthop, &dest_if, &metric)) {
         // found
         macaddr_t dest_mac;
         // direct routing
@@ -248,9 +280,10 @@ int main(int argc, char *argv[]) {
           // found
           memcpy(output, packet, res);
           // update ttl and checksum
-          forward(output, res);
+          if (forward(output, res)) {
           // TODO: you might want to check ttl=0 case
-          HAL_SendIPPacket(dest_if, output, res, dest_mac);
+            HAL_SendIPPacket(dest_if, output, res, dest_mac);
+          }
         } else {
           // not found
           // you can drop it

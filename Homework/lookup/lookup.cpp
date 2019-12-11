@@ -1,3 +1,4 @@
+#include "rip.h"
 #include "router.h"
 #include <stdint.h>
 #include <stdlib.h>
@@ -12,6 +13,7 @@ using std::vector;
     uint32_t len; // 小端序，前缀长度
     uint32_t if_index; // 小端序，出端口编号
     uint32_t nexthop; // 大端序，下一跳的 IPv4 地址
+    uint32_t metric;
   } RoutingTableEntry;
 
   约定 addr 和 nexthop 以 **大端序** 存储。
@@ -50,7 +52,7 @@ void update(bool insert, RoutingTableEntry entry)
  * @param if_index 如果查询到目标，把表项的 if_index 写入
  * @return 查到则返回 true ，没查到则返回 false
  */
-bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index)
+bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index, uint32_t *metric)
 {
   *nexthop = 0;
   *if_index = 0;
@@ -66,8 +68,29 @@ bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index)
         maxlen = (*it).len;
         *nexthop = (*it).nexthop;
         *if_index = (*it).if_index;
+        *metric = (*it).metric;
       }
     }
   }
   return flag;
+}
+
+void buidRipPacket(RipPacket *resp, uint32_t if_index) {
+  *resp.numEntries = RouteTable.size();
+  *resp.command = 2;
+  int i = 0;
+  for (auto tableEntry : RouteTable) {
+    if(tableEntry.if_index == if_index){
+      continue;
+    }
+    uint32_t mask = ntohl(((1 << tableEntry.len) - 1) << (32 - tableEntry.len));
+    RipEntry ripEntry = {
+        .addr = tableEntry.addr,
+        .mask = mask,
+        .nexthop = tableEntry.nexthop,
+        .metric = tableEntry.metric + 1
+    };
+    *resp.entries[i] = ripEntry;
+    i++;
+  }
 }
