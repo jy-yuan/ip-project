@@ -72,10 +72,10 @@ int main(int argc, char *argv[]) {
         output[13] = (uint8_t)((addrs[i] >> 8) & 0xff);
         output[14] = (uint8_t)((addrs[i] >> 16) & 0xff);
         output[15] = (uint8_t)((addrs[i] >> 24) & 0xff);
-        output[16] = 0x09;
+        output[16] = 0xe0;
         output[17] = 0x00;
         output[18] = 0x00;
-        output[19] = 0xe0;
+        output[19] = 0x09;
         // ...
         // UDP
         // port = 520
