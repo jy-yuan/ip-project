@@ -75,7 +75,7 @@ bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index, uint32_t *metri
   return flag;
 }
 
-void buidRipPacket(RipPacket *resp, uint32_t if_index) {
+void buildRipPacket(RipPacket *resp, uint32_t if_index) {
   *resp.numEntries = RouteTable.size();
   *resp.command = 2;
   int i = 0;
