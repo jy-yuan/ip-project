@@ -221,8 +221,6 @@ int main(int argc, char *argv[]) {
           output[26] = 0x00;
           output[27] = 0x00;
           // if you don't want to calculate udp checksum, set it to zero
-          output[26] = 0x00;
-          output[27] = 0x00;
           // send it back
           HAL_SendIPPacket(if_index, output, rip_len + 20 + 8, src_mac);
         } else {
