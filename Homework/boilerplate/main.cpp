@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
       // multicast MAC for 224.0.0.9 is 01:00:5e:00:00:09
       for (uint32_t i = 0; i < N_IFACE_ON_BOARD; i++) {
         output[0] = 0x45;
-        output[1] = 0x00;
+        output[1] = 0xc0;
         output[4] = 0x00;
         output[5] = 0x00;
         output[6] = 0x40;
@@ -95,7 +95,7 @@ int main(int argc, char *argv[]) {
         unsigned long checksum = 0;
         for (uint8_t j = 0; j < 20; j += 2) {
           if (j != 10) {
-            checksum += (((unsigned long)packet[j] << 8) + (unsigned long)packet[j + 1]);
+            checksum += (((unsigned long)output[j] << 8) + (unsigned long)output[j + 1]);
           }
         }
         checksum = (checksum >> 16) + (checksum & 0xffff);
@@ -174,7 +174,7 @@ int main(int argc, char *argv[]) {
           // assemble
           // IP
           output[0] = 0x45;
-          output[1] = 0x00;
+          output[1] = 0xc0;
           output[4] = 0x00;
           output[5] = 0x00;
           output[6] = 0x40;
