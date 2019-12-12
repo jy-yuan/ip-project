@@ -82,6 +82,7 @@ void buildRipPacket(RipPacket *resp, uint32_t if_index) {
   int i = 0;
   for (auto tableEntry : RouteTable) {
     if(tableEntry.if_index == if_index){
+      resp->numEntries--;
       continue;
     }
     uint32_t mask = ntohl(((1 << tableEntry.len) - 1) << (32 - tableEntry.len));
@@ -99,6 +100,6 @@ void buildRipPacket(RipPacket *resp, uint32_t if_index) {
 void printRoutingTable() {
   printf("RouteTable:\n");
   for (auto it = RouteTable.begin(); it != RouteTable.end(); it++) {
-    printf("%x/%x,%x,%x,%x\n", (*it).addr, (*it).len, (*it).if_index, (*it).nexthop, (*it).metric);
+    printf("%d.%d.%d.%d/%d, %d, ->%d.%d.%d.%d, %d\n", (*it).addr & 0xff, ((*it).addr >> 8) & 0xff, ((*it).addr >> 16) & 0xff, ((*it).addr >> 24) & 0xff, (*it).len, (*it).if_index, (*it).nexthop & 0xff, ((*it).nexthop >> 8) & 0xff, ((*it).nexthop >> 16) & 0xff, ((*it).nexthop >> 24) & 0xff, ntohl((*it).metric));
   }
 }
