@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
         output[1] = 0x00;
         output[4] = 0x00;
         output[5] = 0x00;
-        output[6] = 0x00;
+        output[6] = 0x40;
         output[7] = 0x00;
         output[8] = 0x01;
         output[9] = 0x11;
@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
           output[1] = 0x00;
           output[4] = 0x00;
           output[5] = 0x00;
-          output[6] = 0x00;
+          output[6] = 0x40;
           output[7] = 0x00;
           output[8] = 0x01;
           output[9] = 0x11;
