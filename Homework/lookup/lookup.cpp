@@ -88,9 +88,16 @@ void buidRipPacket(RipPacket *resp, uint32_t if_index) {
         .addr = tableEntry.addr,
         .mask = mask,
         .nexthop = tableEntry.nexthop,
-        .metric = tableEntry.metric + 1
+        .metric = tableEntry.metric + 0x01000000
     };
     *resp.entries[i] = ripEntry;
     i++;
+  }
+}
+
+void printRoutingTable() {
+  printf("RouteTable:\n");
+  for (auto it = RouteTable.begin(); it != RouteTable.end(); it++) {
+    printf("%x/%x,%x,%x,%x\n", (*it).addr, (*it).len, (*it).if_index, (*it).nexthop, (*it).metric);
   }
 }

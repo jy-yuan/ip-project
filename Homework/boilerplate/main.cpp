@@ -13,6 +13,7 @@ extern bool forward(uint8_t *packet, size_t len);
 extern bool disassemble(const uint8_t *packet, uint32_t len, RipPacket *output);
 extern uint32_t assemble(const RipPacket *rip, uint8_t *buffer);
 extern void buidRipPacket(RipPacket *resp, uint32_t if_index);
+extern void printRoutingTable();
 
 uint8_t packet[2048];
 uint8_t output[2048];
@@ -56,61 +57,60 @@ int main(int argc, char *argv[]) {
       // send complete routing table to every interface
       // ref. RFC2453 3.8
       // multicast MAC for 224.0.0.9 is 01:00:5e:00:00:09
-      output[0] = 0x45;
-      output[1] = 0x00;
-      output[2] = 0x00;
-      output[3] = 0x34;//length=52
-      output[4] = 0x00;
-      output[5] = 0x00;
-      output[6] = 0x00;
-      output[7] = 0x00;
-      output[8] = 0x01;
-      output[9] = 0x11;
-      output[12] = (uint8_t)(dst_addr & 0xff);
-      output[13] = (uint8_t)((dst_addr >> 8) & 0xff);
-      output[14] = (uint8_t)((dst_addr >> 16) & 0xff);
-      output[15] = (uint8_t)((dst_addr >> 24) & 0xff);
-      output[16] = 0x09;
-      output[17] = 0x00;
-      output[18] = 0x00;
-      output[19] = 0xe0;
-      // ...
-      // UDP
-      // port = 520
-      output[20] = 0x02;
-      output[21] = 0x08;
-      output[22] = 0x02;
-      output[23] = 0x08;
-      output[24] = 0x00;
-      output[25] = 0x20;
-      output[26] = 0x00;
-      output[27] = 0x00;
-      // ...
-      // RIP
-      output[28] = 0x01;
-      output[29] = 0x02;
-      // ...
-      for(int i = 30; i < 53; i++) {
-        output[i] = 0;
-      }
-      output[53] = 0x10;
-      unsigned long checksum = 0;
-      for (uint8_t i = 0; i < 20; i += 2) {
-        if (i != 10) {
-          checksum += (((unsigned long)packet[i] << 8) + (unsigned long)packet[i + 1]);
+      for (uint32_t i = 0; i < N_IFACE_ON_BOARD; i++) {
+        output[0] = 0x45;
+        output[1] = 0x00;
+        output[2] = 0x00;
+        output[3] = 0x34;//length=52
+        output[4] = 0x00;
+        output[5] = 0x00;
+        output[6] = 0x00;
+        output[7] = 0x00;
+        output[8] = 0x01;
+        output[9] = 0x11;
+        output[12] = (uint8_t)(addrs[i] & 0xff);
+        output[13] = (uint8_t)((addrs[i] >> 8) & 0xff);
+        output[14] = (uint8_t)((addrs[i] >> 16) & 0xff);
+        output[15] = (uint8_t)((addrs[i] >> 24) & 0xff);
+        output[16] = 0x09;
+        output[17] = 0x00;
+        output[18] = 0x00;
+        output[19] = 0xe0;
+        // ...
+        // UDP
+        // port = 520
+        output[20] = 0x02;
+        output[21] = 0x08;
+        output[22] = 0x02;
+        output[23] = 0x08;
+        output[24] = 0x00;
+        output[25] = 0x20;
+        output[26] = 0x00;
+        output[27] = 0x00;
+        // ...
+        // RIP
+        output[28] = 0x01;
+        output[29] = 0x02;
+        // ...
+        for(uint32_t j = 30; j < 51; j++) {
+          output[j] = 0;
         }
+        output[51] = 0x10;
+        unsigned long checksum = 0;
+        for (uint8_t j = 0; j < 20; j += 2) {
+          if (j != 10) {
+            checksum += (((unsigned long)packet[j] << 8) + (unsigned long)packet[j + 1]);
+          }
+        }
+        checksum = (checksum >> 16) + (checksum & 0xffff);
+        checksum += checksum >> 16;
+        output[10] = (uint8_t)((~checksum) >> 8);
+        output[11] = (uint8_t)(~checksum);
+        uint32_t rip_len = 0x34;
+        macaddr_t dst_mac;
+        HAL_ArpGetMacAddress(0, 0x090000e0, dst_mac);
+        HAL_SendIPPacket(i, output, rip_len, dst_mac);
       }
-      checksum = (checksum >> 16) + (checksum & 0xffff);
-      checksum += checksum >> 16;
-      output[10] = (uint8_t)((~checksum) >> 8);
-      output[11] = (uint8_t)(~checksum);
-      uint32_t rip_len = 0x34;
-      macaddr_t dst_mac;
-      HAL_ArpGetMacAddress(0, 0x090000e0, dst_mac);
-      HAL_SendIPPacket(0, output, rip_len, dst_mac);
-      HAL_SendIPPacket(1, output, rip_len, dst_mac);
-      HAL_SendIPPacket(2, output, rip_len, dst_mac);
-      HAL_SendIPPacket(3, output, rip_len, dst_mac);
       printf("30s Timer\n");
       last_time = time;
     }
@@ -217,7 +217,7 @@ int main(int argc, char *argv[]) {
           checksum = (checksum >> 16) + (checksum & 0xffff);
           checksum += checksum >> 16;
           output[10] = (uint8_t)((~checksum) >> 8);
-          output[11] = (uint8_t)(~checksum);
+          output[11] = (uint8_t)~checksum;
           output[26] = 0x00;
           output[27] = 0x00;
           // if you don't want to calculate udp checksum, set it to zero
@@ -233,12 +233,12 @@ int main(int argc, char *argv[]) {
           // what is missing from RoutingTableEntry?
           // TODO: use query and update
           // triggered updates? ref. RFC2453 3.10.1
-          int count = rip.numEntries;
-          for(int i = 0; i < count; i++) {
+          uint32_t count = rip.numEntries;
+          for (uint32_t i = 0; i < count; i++) {
             uint32_t nexthop, dest_if, metric;
             uint32_t len = 0;
             uint32_t seMask = ntohl(rip.entries[i].mask);
-            for(int j = 0; j < 32; j++) {
+            for (int j = 0; j < 32; j++) {
               if((seMask >> j) % 2 == 1) {
                 len = 32 - j;
                 break;
@@ -251,10 +251,10 @@ int main(int argc, char *argv[]) {
                 .nexthop = src_addr,
                 .metric = rip.entries[i].metric
             };
-            if(rip.entries[i].metric > 16) {
+            if (rip.entries[i].metric > 0x10000000) {
               update(false, tableEntry);
             }
-            if(query(rip.entries[i].addr, &nexthop, &dest_if, &metric)) {
+            if (query(rip.entries[i].addr, &nexthop, &dest_if, &metric)) {
               if(rip.entries[i].metric < metric) {
                 update(true, tableEntry);
               }
@@ -262,6 +262,7 @@ int main(int argc, char *argv[]) {
               update(true, tableEntry);
             }
           }
+          printRoutingTable();
         }
       }
     } else {
