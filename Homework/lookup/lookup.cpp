@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <vector>
+#include <stdio.h>
 using std::vector;
 
 /*
@@ -76,8 +77,8 @@ bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index, uint32_t *metri
 }
 
 void buildRipPacket(RipPacket *resp, uint32_t if_index) {
-  *resp.numEntries = RouteTable.size();
-  *resp.command = 2;
+  resp->numEntries = RouteTable.size();
+  resp->command = 2;
   int i = 0;
   for (auto tableEntry : RouteTable) {
     if(tableEntry.if_index == if_index){
@@ -90,7 +91,7 @@ void buildRipPacket(RipPacket *resp, uint32_t if_index) {
         .nexthop = tableEntry.nexthop,
         .metric = tableEntry.metric + 0x01000000
     };
-    *resp.entries[i] = ripEntry;
+    resp->entries[i] = ripEntry;
     i++;
   }
 }
