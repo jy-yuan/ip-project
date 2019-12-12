@@ -60,8 +60,6 @@ int main(int argc, char *argv[]) {
       for (uint32_t i = 0; i < N_IFACE_ON_BOARD; i++) {
         output[0] = 0x45;
         output[1] = 0x00;
-        output[2] = 0x00;
-        output[3] = 0x34;//length=52
         output[4] = 0x00;
         output[5] = 0x00;
         output[6] = 0x00;
@@ -83,15 +81,17 @@ int main(int argc, char *argv[]) {
         output[21] = 0x08;
         output[22] = 0x02;
         output[23] = 0x08;
-        output[24] = 0x00;
-        output[25] = 0x20;
         output[26] = 0x00;
         output[27] = 0x00;
         // ...
         // RIP
         RipPacket resp;
-        buildRipPacket(&resp, if_index);
+        buildRipPacket(&resp, i);
         uint32_t rip_len = assemble(&resp, &output[20 + 8]);
+        output[2] = (uint8_t) ((rip_len + 28) >> 8);
+        output[3] = (uint8_t) rip_len + 28;
+        output[24] = (uint8_t) ((rip_len + 8) >> 8);
+        output[25] = (uint8_t) rip_len + 8;
         unsigned long checksum = 0;
         for (uint8_t j = 0; j < 20; j += 2) {
           if (j != 10) {
