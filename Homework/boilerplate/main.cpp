@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
   uint64_t last_time = 0;
   while (1) {
     uint64_t time = HAL_GetTicks();
-    if (time > last_time + 30 * 1000) {
+    if (time > last_time + 5 * 1000) {
       // What to do?
       // send complete routing table to every interface
       // ref. RFC2453 3.8
@@ -89,13 +89,9 @@ int main(int argc, char *argv[]) {
         output[27] = 0x00;
         // ...
         // RIP
-        output[28] = 0x01;
-        output[29] = 0x02;
-        // ...
-        for(uint32_t j = 30; j < 51; j++) {
-          output[j] = 0;
-        }
-        output[51] = 0x10;
+        RipPacket resp;
+        buildRipPacket(&resp, if_index);
+        uint32_t rip_len = assemble(&resp, &output[20 + 8]);
         unsigned long checksum = 0;
         for (uint8_t j = 0; j < 20; j += 2) {
           if (j != 10) {
@@ -106,12 +102,11 @@ int main(int argc, char *argv[]) {
         checksum += checksum >> 16;
         output[10] = (uint8_t)((~checksum) >> 8);
         output[11] = (uint8_t)(~checksum);
-        uint32_t rip_len = 0x34;
         macaddr_t dst_mac;
         HAL_ArpGetMacAddress(0, 0x090000e0, dst_mac);
-        HAL_SendIPPacket(i, output, rip_len, dst_mac);
+        HAL_SendIPPacket(i, output, rip_len + 20 + 8, dst_mac);
       }
-      printf("30s Timer\n");
+      printf("5s Timer\n");
       last_time = time;
     }
 
@@ -164,11 +159,13 @@ int main(int argc, char *argv[]) {
     }
 
     if (dst_is_me) {
+      printf("dst is me...\n");
       // 3a.1
       RipPacket rip;
       // check and validate
       if (disassemble(packet, res, &rip)) {
         if (rip.command == 1) {
+          printf("receive request...\n");
           // 3a.3 request, ref. RFC2453 3.9.1
           // only need to respond to whole table requests in the lab
           RipPacket resp;
@@ -224,6 +221,7 @@ int main(int argc, char *argv[]) {
           // send it back
           HAL_SendIPPacket(if_index, output, rip_len + 20 + 8, src_mac);
         } else {
+          printf("receive response...\n");
           // 3a.2 response, ref. RFC2453 3.9.2
           // update routing table
           // new metric = ?
@@ -264,6 +262,7 @@ int main(int argc, char *argv[]) {
         }
       }
     } else {
+      printf("dst is not me...\n");
       // 3b.1 dst is not me
       // forward
       // beware of endianness
@@ -280,7 +279,7 @@ int main(int argc, char *argv[]) {
           memcpy(output, packet, res);
           // update ttl and checksum
           if (forward(output, res)) {
-          // TODO: you might want to check ttl=0 case
+            printf("forwarding...\n");
             HAL_SendIPPacket(dest_if, output, res, dest_mac);
           }
         } else {
