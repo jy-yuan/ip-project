@@ -208,7 +208,7 @@ int main(int argc, char *argv[]) {
           unsigned long checksum = 0;
           for (uint8_t i = 0; i < 20; i += 2) {
             if (i != 10) {
-              checksum += (((unsigned long)packet[i] << 8) + (unsigned long)packet[i + 1]);
+              checksum += (((unsigned long)output[i] << 8) + (unsigned long)output[i + 1]);
             }
           }
           checksum = (checksum >> 16) + (checksum & 0xffff);
