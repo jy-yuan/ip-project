@@ -7,7 +7,7 @@
 #include <string.h>
 
 extern bool validateIPChecksum(uint8_t *packet, size_t len);
-extern void update(bool insert, RoutingTableEntry entry);
+extern void update(bool insert, RoutingTableEntry entry, uint32_t if_index = 0);
 extern bool query(uint32_t addr, uint32_t *nexthop, uint32_t *if_index, uint32_t *metric);
 extern bool forward(uint8_t *packet, size_t len);
 extern bool disassemble(const uint8_t *packet, uint32_t len, RipPacket *output);
@@ -247,11 +247,11 @@ int main(int argc, char *argv[]) {
                 .nexthop = src_addr,
                 .metric = rip.entries[i].metric
             };
-            if (rip.entries[i].metric > 0x10000000) {
-              update(false, tableEntry);
+            if (ntohl(rip.entries[i].metric) > 16) {
+              update(false, tableEntry, if_index);
             }
             if (query(rip.entries[i].addr, &nexthop, &dest_if, &metric)) {
-              if(rip.entries[i].metric < metric) {
+              if(ntohl(rip.entries[i].metric) <= ntohl(metric)) {
                 update(true, tableEntry);
               }
             } else {

@@ -34,16 +34,24 @@ vector<RoutingTableEntry> RouteTable;
  * 插入时如果已经存在一条 addr 和 len 都相同的表项，则替换掉原有的。
  * 删除时按照 addr 和 len 匹配。
  */
-void update(bool insert, RoutingTableEntry entry)
+void update(bool insert, RoutingTableEntry entry, uint32_t if_index = 0)
 {
-  for (auto it = RouteTable.begin(); it != RouteTable.end(); it++) {
-    if ((*it).addr == entry.addr && (*it).len == entry.len) {
-      RouteTable.erase(it);
-      break;
+  if (insert) {
+    for (auto it = RouteTable.begin(); it != RouteTable.end(); it++) {
+      if ((*it).addr == entry.addr && (*it).len == entry.len) {
+        RouteTable.erase(it);
+        break;
+      }
     }
-  }
-  if (insert)
     RouteTable.push_back(entry);
+  } else {
+    for (auto it = RouteTable.begin(); it != RouteTable.end(); it++) {
+      if ((*it).addr == entry.addr && (*it).len == entry.len && (*it).if_index == if_index) {
+        RouteTable.erase(it);
+        break;
+      }
+    }
+  }    
 }
 
 /**
